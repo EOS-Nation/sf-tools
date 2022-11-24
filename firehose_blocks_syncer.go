@@ -31,6 +31,7 @@ func DownloadFirehoseBlocks(
 	startBlock uint64,
 	stopBlock uint64,
 	destURL string,
+	checkBundleSize bool,
 	respDecoder FirehoseResponseDecoder,
 	tweakBlock func(*bstream.Block) (*bstream.Block, error),
 	logger *zap.Logger) error {
@@ -49,14 +50,14 @@ func DownloadFirehoseBlocks(
 	}
 
 	mergeWriter := &mergedBlocksWriter{
-		store:         store,
-		writerFactory: bstream.GetBlockWriterFactory,
-		tweakBlock:    tweakBlock,
-		logger:        logger,
+		store:           store,
+		writerFactory:   bstream.GetBlockWriterFactory,
+		tweakBlock:      tweakBlock,
+		logger:          logger,
+		checkBundleSize: checkBundleSize,
 	}
 
 	for {
-
 		request := &pbfirehose.Request{
 			StartBlockNum:   int64(startBlock),
 			StopBlockNum:    stopBlock,
@@ -90,9 +91,6 @@ func DownloadFirehoseBlocks(
 			if err := mergeWriter.ProcessBlock(blk, nil); err != nil {
 				return fmt.Errorf("write to blockwriter: %w", err)
 			}
-
 		}
-
 	}
-
 }
