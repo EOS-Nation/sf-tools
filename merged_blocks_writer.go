@@ -23,12 +23,18 @@ type mergedBlocksWriter struct {
 }
 
 func (w *mergedBlocksWriter) ProcessBlock(blk *bstream.Block, obj interface{}) error {
+
+	removeBlock := false
 	if w.tweakBlock != nil {
 		b, err := w.tweakBlock(blk)
 		if err != nil {
 			return fmt.Errorf("tweaking block: %w", err)
 		}
-		blk = b
+		if b == nil {
+			removeBlock = true
+		} else {
+			blk = b
+		}
 	}
 
 	if w.lowBlockNum == 0 && blk.Number > 99 { // initial block
@@ -50,7 +56,9 @@ func (w *mergedBlocksWriter) ProcessBlock(blk *bstream.Block, obj interface{}) e
 		return io.EOF
 	}
 
-	w.blocks = append(w.blocks, blk)
+	if !removeBlock {
+		w.blocks = append(w.blocks, blk)
+	}
 
 	if blk.Number == w.lowBlockNum+99 {
 		w.logger.Debug("bundling on last bundle block", zap.Uint64("last_bundle_block", w.lowBlockNum+99))
