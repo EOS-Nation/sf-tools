@@ -3,11 +3,10 @@ package sftools
 import (
 	"context"
 	"fmt"
-	"io"
-
 	"github.com/streamingfast/bstream"
 	"github.com/streamingfast/dstore"
 	"go.uber.org/zap"
+	"io"
 )
 
 type mergedBlocksWriter struct {
@@ -56,6 +55,8 @@ func (w *mergedBlocksWriter) ProcessBlock(blk *bstream.Block, obj interface{}) e
 	if blk.Number == w.lowBlockNum+99 {
 		w.logger.Debug("bundling on last bundle block", zap.Uint64("last_bundle_block", w.lowBlockNum+99))
 		if w.checkBundleSize && len(w.blocks) != 100 && blk.Number >= 100 { // don't check the first bundle as the start block differs between blockchains
+			w.checkDuplicateNumbers()
+			w.checkDuplicateIds()
 			return fmt.Errorf("failed to check bundle size, expected 100 blocks but got %d at low_block_number %d", len(w.blocks), w.lowBlockNum)
 		}
 		if err := w.writeBundle(); err != nil {
@@ -113,4 +114,32 @@ func (w *mergedBlocksWriter) writeBundle() error {
 
 func lowBoundary(i uint64) uint64 {
 	return i - (i % 100)
+}
+
+func (w *mergedBlocksWriter) checkDuplicateNumbers() {
+
+	blockMap := make(map[uint64]*bstream.Block)
+
+	for _, b := range w.blocks {
+		if block, ok := blockMap[b.Number]; ok {
+			w.logger.Error("found duplicate block number in bundle", zap.Uint64("block_num", b.Number),
+				zap.Any("block1", b), zap.Any("block2", block))
+		} else {
+			blockMap[b.Number] = b
+		}
+	}
+}
+
+func (w *mergedBlocksWriter) checkDuplicateIds() {
+
+	blockMap := make(map[string]*bstream.Block)
+
+	for _, b := range w.blocks {
+		if block, ok := blockMap[b.Id]; ok {
+			w.logger.Error("found duplicate block id in bundle", zap.String("block_id", b.Id),
+				zap.Any("block1", b), zap.Any("block2", block))
+		} else {
+			blockMap[b.Id] = b
+		}
+	}
 }
