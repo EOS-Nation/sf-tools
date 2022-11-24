@@ -55,7 +55,7 @@ func (w *mergedBlocksWriter) ProcessBlock(blk *bstream.Block, obj interface{}) e
 
 	if blk.Number == w.lowBlockNum+99 {
 		w.logger.Debug("bundling on last bundle block", zap.Uint64("last_bundle_block", w.lowBlockNum+99))
-		if w.checkBundleSize && len(w.blocks) != 100 {
+		if w.checkBundleSize && len(w.blocks) != 100 && blk.Number >= 100 { // don't check the first bundle as the start block differs between blockchains
 			return fmt.Errorf("failed to check bundle size, expected 100 blocks but got %d", len(w.blocks))
 		}
 		if err := w.writeBundle(); err != nil {
